@@ -75,9 +75,14 @@ func LoadFile(path string) (*Package, error) {
 
 	fset := token.NewFileSet()
 	cfg := &packages.Config{
+		/*
+			Only the target package and its test variants need loading.
+			Requesting NeedDeps would flip go/packages to its slow path:
+			it would type-check the whole dependency closure from source
+			on every run instead of reading cached export data.
+		*/
 		Mode: packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles |
-			packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo |
-			packages.NeedDeps | packages.NeedImports,
+			packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo,
 		Dir:   filepath.Dir(resolved),
 		Fset:  fset,
 		Tests: true,

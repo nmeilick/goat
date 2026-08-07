@@ -1,6 +1,5 @@
 # goat
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/nmeilick/goat)](https://goreportcard.com/report/github.com/nmeilick/goat)
 [![Go Reference](https://pkg.go.dev/badge/github.com/nmeilick/goat.svg)](https://pkg.go.dev/github.com/nmeilick/goat)
 ![Go 1.25+](https://img.shields.io/badge/go-1.25+-00ADD8?logo=go&logoColor=white)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
