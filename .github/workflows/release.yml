@@ -1,0 +1,109 @@
+name: Release Build
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          # Golden fixtures are formatted by the development toolchain;
+          # keep CI on the same Go line to avoid formatting drift.
+          go-version: '1.26'
+
+      - name: Run tests
+        run: make check
+
+  build-release:
+    name: Build for ${{ matrix.goos }}/${{ matrix.goarch }}
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+          - goos: windows
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for 'git describe' if Makefile uses it, and for 'git rev-parse --short HEAD'
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Get Release Version
+        id: get_version
+        run: echo "RELEASE_VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV # Strips 'v' prefix from tag like v1.2.3
+
+      - name: Set executable suffix for Windows
+        if: matrix.goos == 'windows'
+        run: echo "EXECUTABLE_SUFFIX=.exe" >> $GITHUB_ENV
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          VERSION: ${{ env.RELEASE_VERSION }} # Overrides Makefile's VERSION
+          # COMMIT and BUILD_DATE will be determined by Makefile using its shell commands
+        run: |
+          make build   # Builds the binary using GOOS, GOARCH
+          # go build -o bin/goat does not append .exe for Windows targets.
+          if [ "${{ matrix.goos }}" = "windows" ]; then mv bin/goat bin/goat.exe; fi
+
+      - name: Prepare archive contents
+        id: prep_archive
+        run: |
+          ARTIFACT_DIR_BASE="goat-${{ env.RELEASE_VERSION }}-${{ matrix.goos }}-${{ matrix.goarch }}"
+          ARTIFACT_DIR_PATH="release_artifacts/$ARTIFACT_DIR_BASE" # Staging directory for archive contents
+          mkdir -p $ARTIFACT_DIR_PATH
+
+          SOURCE_BINARY_PATH="bin/goat${{ env.EXECUTABLE_SUFFIX }}"
+          DEST_BINARY_PATH="$ARTIFACT_DIR_PATH/goat${{ env.EXECUTABLE_SUFFIX }}"
+
+          echo "Copying $SOURCE_BINARY_PATH to $DEST_BINARY_PATH"
+          cp $SOURCE_BINARY_PATH $DEST_BINARY_PATH
+
+          echo "Copying LICENSE"
+          cp LICENSE $ARTIFACT_DIR_PATH/
+
+          if [ -f README.md ]; then
+            echo "Copying README.md"
+            cp README.md $ARTIFACT_DIR_PATH/
+          fi
+
+          echo "ARTIFACT_DIR_BASE=$ARTIFACT_DIR_BASE" >> $GITHUB_OUTPUT
+          echo "ARTIFACT_PARENT_DIR=release_artifacts" >> $GITHUB_OUTPUT
+
+      - name: Create archive
+        run: |
+          ARCHIVE_NAME="goat-${{ env.RELEASE_VERSION }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz"
+          tar -C ${{ steps.prep_archive.outputs.ARTIFACT_PARENT_DIR }} -czvf $ARCHIVE_NAME ${{ steps.prep_archive.outputs.ARTIFACT_DIR_BASE }}
+          echo "ARCHIVE_PATH=$ARCHIVE_NAME" >> $GITHUB_ENV
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ env.ARCHIVE_PATH }}
