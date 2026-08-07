@@ -95,13 +95,12 @@ func TestSymbolsNoArgExit2(t *testing.T) {
 }
 
 func TestSymbolsExtraneousArgExit2(t *testing.T) {
-	// The common extraneous-argument style, same as cobra.NoArgs on version.
 	_, stderr, code := run("symbols", "a.go", "b.go")
 	if code != 2 {
 		t.Fatalf("exit code = %d, want 2", code)
 	}
-	if !strings.Contains(stderr, `unknown command "b.go"`) {
-		t.Errorf("stderr = %q, want it to name the extraneous argument", stderr)
+	if !strings.Contains(stderr, "accepts exactly one <file.go> argument, got 2") {
+		t.Errorf("stderr = %q, want it to explain the single-file arity", stderr)
 	}
 	if !strings.Contains(stderr, "run 'goat symbols --help'") {
 		t.Errorf("stderr = %q, want the usage hint", stderr)

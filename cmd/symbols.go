@@ -43,11 +43,7 @@ Exit codes: 0 success, 1 failure (no files touched), 2 usage error.`,
 				return &usageError{"missing required <file.go> argument"}
 			}
 			if len(args) > 1 {
-				/*
-					The common extraneous-argument style, matching what
-					cobra.NoArgs produces for version.
-				*/
-				return &usageError{fmt.Sprintf("unknown command %q for %q", args[1], cmd.CommandPath())}
+				return &usageError{fmt.Sprintf("accepts exactly one <file.go> argument, got %d", len(args))}
 			}
 			return nil
 		},
